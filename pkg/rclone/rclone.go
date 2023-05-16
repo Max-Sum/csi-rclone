@@ -201,7 +201,7 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 						Containers: []corev1.Container{
 							{
 								Name:    "rclone-mounter",
-								Image:   "rclone/rclone:1.59.2",
+								Image:   "rclone/rclone:1.62.2",
 								Command: []string{"rclone"},
 								Args:    mountArgs,
 								Ports: []corev1.ContainerPort{
