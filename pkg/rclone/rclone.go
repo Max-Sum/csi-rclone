@@ -5,6 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
+	"reflect"
+	"strings"
+	"time"
+
 	"golang.org/x/net/context"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -18,10 +23,6 @@ import (
 	"k8s.io/kubernetes/pkg/client/conditions"
 	"k8s.io/utils/exec"
 	"k8s.io/utils/pointer"
-	"os"
-	"reflect"
-	"strings"
-	"time"
 )
 
 type Operations interface {

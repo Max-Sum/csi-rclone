@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gzmaxsum/csi-rclone/pkg/kube"
-	"github.com/gzmaxsum/csi-rclone/pkg/rclone"
+	"github.com/Max-Sum/csi-rclone/pkg/kube"
+	"github.com/Max-Sum/csi-rclone/pkg/rclone"
 	"github.com/kubernetes-csi/csi-test/pkg/sanity"
 )
 

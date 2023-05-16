@@ -1,18 +1,17 @@
 
 # CSI rclone mount plugin
 
-This project implements Container Storage Interface (CSI) plugin that allows using [rclone mount](https://rclone.org/) as storage backend. Rclone mount points and [parameters](https://rclone.org/commands/rclone_mount/) can be configured using Secret or PersistentVolume volumeAttibutes. 
+This project implements Container Storage Interface (CSI) plugin that allows using [rclone mount](https://rclone.org/) as storage backend. Rclone mount points and [parameters](https://rclone.org/commands/rclone_mount/) can be configured using Secret. 
 
 ## Kubernetes cluster compatability
 Works (tested):
 - `deploy/kubernetes/1.19`: K8S>= 1.19.x (due to storage.k8s.io/v1 CSIDriver API)
-- `deploy/kubernetes/1.13`: K8S 1.13.x - 1.21.x (storage.k8s.io/v1beta1 CSIDriver API)
 
 Does not work:
 - v1.12.7-gke.10, driver name csi-rclone not found in the list of registered CSI drivers
 
 ## Installing CSI driver to kubernetes cluster
-TLDR: ` kubectl apply -f deploy/kubernetes/1.19` (or `deploy/kubernetes/1.13` for older version)
+TLDR: Edit `deploy/kubernetes/1.19/csi-rclone-storageclass.yaml` and `deploy/kubernetes/1.19/csi-rclone-secret.yaml`. Then run` kubectl apply -f deploy/kubernetes/1.19`.
 
 1. Set up storage backend. You can use [Minio](https://min.io/), Amazon S3 compatible cloud storage service.
 i.e. 
@@ -20,36 +19,36 @@ i.e.
 helm upgrade --install --create-namespace --namespace minio minio minio/minio --version 6.0.5 --set resources.requests.memory=512Mi --set secretKey=SECRET_ACCESS_KEY --set accessKey=ACCESS_KEY_ID
 ```
 
-2. Configure defaults by pushing secret to kube-system namespace. This is optional if you will always define `volumeAttributes` in PersistentVolume.
+2. Configure the backend in `csi-rclone-storageclass.yaml` and `csi-rclone-secret.yaml`.
 
+csi-rclone-storageclass.yaml
+```
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rclone
+  namespace: csi-rclone
+provisioner: csi-rclone
+parameters:
+  remote: "minio"
+  path: "rclone-kubernetes"
+  csi.storage.k8s.io/provisioner-secret-name: rclone-secret
+  csi.storage.k8s.io/provisioner-secret-namespace: csi-rclone
+  csi.storage.k8s.io/node-publish-secret-name: rclone-secret
+  csi.storage.k8s.io/node-publish-secret-namespace: csi-rclone
+```
+
+csi-rclone-secret.yaml
 ```
 apiVersion: v1
 kind: Secret
 metadata:
   name: rclone-secret
+  namespace: csi-rclone
 type: Opaque
 stringData:
-  remote: "s3"
-  remotePath: "projectname"
-  s3-provider: "Minio"
-  s3-endpoint: "http://minio.minio:9000"
-  s3-access-key-id: "ACCESS_KEY_ID"
-  s3-secret-access-key: "SECRET_ACCESS_KEY"
-```
-
-Alternatively, you may specify rclone configuration file directly in the secret under `configData` field.
-
-```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: rclone-secret
-type: Opaque
-stringData:
-  remote: "my-s3"
-  remotePath: "projectname"
-  configData: |
-    [my-s3]
+  rclone.conf: |
+    [minio]
     type = s3
     provider = Minio
     access_key_id = ACCESS_KEY_ID
@@ -57,35 +56,9 @@ stringData:
     endpoint = http://minio-release.default:9000
 ```
 
-Deploy example secret
-> `kubectl apply -f example/kubernetes/rclone-secret-example.yaml --namespace kube-system`
+3. Deploy by `kubectl apply -f deploy/kubernetes/1.19`
 
-3. You can override configuration via PersistentStorage resource definition. Leave volumeAttributes empty if you don't want to. Keys in `volumeAttributes` will be merged with predefined parameters.
-
-```
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: data-rclone-example
-  labels:
-    name: data-rclone-example
-spec:
-  accessModes:
-  - ReadWriteMany
-  capacity:
-    storage: 10Gi
-  storageClassName: rclone
-  csi:
-    driver: csi-rclone
-    volumeHandle: data-id
-    volumeAttributes:
-      remote: "s3"
-      remotePath: "projectname/pvname"
-      s3-provider: "Minio"
-      s3-endpoint: "http://minio.minio:9000"
-      s3-access-key-id: "ACCESS_KEY_ID"
-      s3-secret-access-key: "SECRET_ACCESS_KEY"
-```
+Optionally, you can configure more than 1 dynamic provisioner by editing and pushing `csi-rclone-storageclass.yaml` and its secrets.
 
 Deploy example definition
 > `kubectl apply -f example/kubernetes/nginx-example.yaml`

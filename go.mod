@@ -1,4 +1,4 @@
-module github.com/gzmaxsum/csi-rclone
+module github.com/Max-Sum/csi-rclone
 
 go 1.15
 

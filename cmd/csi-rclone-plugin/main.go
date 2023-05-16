@@ -4,8 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/spf13/cobra"
-	"github.com/gzmaxsum/csi-rclone/pkg/kube"
-	"github.com/gzmaxsum/csi-rclone/pkg/rclone"
+	"github.com/Max-Sum/csi-rclone/pkg/kube"
+	"github.com/Max-Sum/csi-rclone/pkg/rclone"
 	"os"
 )
 
