@@ -1,4 +1,4 @@
-module github.com/wunderio/csi-rclone
+module github.com/gzmaxsum/csi-rclone
 
 go 1.15
 
@@ -7,14 +7,15 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/gogo/protobuf v1.2.1 // indirect
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
+	github.com/google/uuid v1.3.0
 	github.com/googleapis/gnostic v0.2.0 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190212212710-3befbb6ad0cc // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.5 // indirect
 	github.com/kubernetes-csi/csi-lib-utils v0.3.1 // indirect
+	github.com/kubernetes-csi/csi-test v2.2.0+incompatible
 	github.com/kubernetes-csi/drivers v1.0.2
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
@@ -43,6 +44,6 @@ require (
 	k8s.io/klog v0.2.0
 	k8s.io/kube-openapi v0.0.0-20190222203931-aa8624f5a2df // indirect
 	k8s.io/kubernetes v1.13.2
-	k8s.io/utils v0.0.0-20190221042446-c2654d5206da // indirect
+	k8s.io/utils v0.0.0-20190221042446-c2654d5206da
 	sigs.k8s.io/yaml v1.1.0 // indirect
 )
