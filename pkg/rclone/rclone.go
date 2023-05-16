@@ -170,7 +170,7 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 						NodeName:                      os.Getenv("NODE_ID"),
 						RestartPolicy:                 corev1.RestartPolicyAlways,
 						PriorityClassName:             "system-cluster-critical",
-						TerminationGracePeriodSeconds: pointer.Int64Ptr(10),
+						TerminationGracePeriodSeconds: pointer.Int64Ptr(720), // More time for transfers to complete
 						Volumes: []corev1.Volume{
 							{
 								Name: "mount",
@@ -202,7 +202,7 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 							{
 								Name:    "rclone-mounter",
 								Image:   "rclone/rclone:1.62.2",
-								Command: []string{"rclone"},
+								Command: []string{"rclone", "--rc"},
 								Args:    mountArgs,
 								Ports: []corev1.ContainerPort{
 									{
@@ -213,8 +213,13 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 								},
 								Lifecycle: &corev1.Lifecycle{
 									PreStop: &corev1.Handler{
-										Exec: &corev1.ExecAction{Command: []string{"sh", "-c", fmt.Sprintf(
-											"umount", targetPath)}},
+										// Do not umount until all transfers finished.
+										Exec: &corev1.ExecAction{
+											Command: []string{"sh", "-c",
+												"while rclone rc core/stats | grep '\"transferring\":'; do sleep 1; done;" +
+													"umount " + targetPath,
+											},
+										},
 									},
 								},
 								VolumeMounts: []corev1.VolumeMount{
