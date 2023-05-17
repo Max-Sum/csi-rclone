@@ -6,8 +6,6 @@ metadata:
 provisioner: csi-rclone
 #volumeBindingMode: WaitForFirstConsumer
 parameters:
-  remote: "minio"
-  path: "rclone-kubernetes"
   csi.storage.k8s.io/provisioner-secret-name: rclone-secret
   csi.storage.k8s.io/provisioner-secret-namespace: csi-rclone
   csi.storage.k8s.io/node-publish-secret-name: rclone-secret

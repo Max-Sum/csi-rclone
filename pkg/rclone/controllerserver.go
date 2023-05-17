@@ -53,20 +53,17 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 		return nil, status.Error(codes.InvalidArgument, "CreateVolume without capabilities")
 	}
 
-	rcloneConfPath, err := extractRcloneConf(req.Secrets)
+	remote, remotePath, configData, flags, err := extractFlags(req.GetParameters(), req.GetSecrets())
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume: %v", err)
 	}
-	remote, ok := req.GetParameters()["remote"]
-	if !ok {
-		return nil, status.Errorf(codes.InvalidArgument, "remote key not found in parameters")
+	rcloneConfPath, err := saveRcloneConf(configData)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume: %v", err)
 	}
-	remotePath, ok := req.GetParameters()["path"]
-	if !ok {
-		return nil, status.Errorf(codes.InvalidArgument, "path key not found in parameters")
-	}
+	defer os.Remove(rcloneConfPath)
 
-	if err = cs.RcloneOps.CreateVol(ctx, volumeName, remote, remotePath, rcloneConfPath); err != nil {
+	if err = cs.RcloneOps.CreateVol(ctx, volumeName, remote, remotePath, rcloneConfPath, flags); err != nil {
 		klog.Errorf("error creating Volume: %s", err)
 		return nil, err
 	}
@@ -88,17 +85,19 @@ func (cs *controllerServer) DeleteVolume(ctx context.Context, req *csi.DeleteVol
 		return nil, status.Error(codes.InvalidArgument, "DeteleVolume must be provided volume id")
 	}
 
-	rcloneConfPath, err := extractRcloneConf(req.Secrets)
+	configData, flags := extractConfigData(req.GetSecrets())
+	rcloneConfPath, err := saveRcloneConf(configData)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "CreateVolume: %v", err)
 	}
+	defer os.Remove(rcloneConfPath)
 
 	rcloneVol, err := cs.RcloneOps.GetVolumeById(ctx, req.GetVolumeId())
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	err = cs.RcloneOps.DeleteVol(ctx, rcloneVol, rcloneConfPath)
+	err = cs.RcloneOps.DeleteVol(ctx, rcloneVol, rcloneConfPath, flags)
 	if err != nil {
 		klog.Errorf("error creating Volume: %s", err)
 		return nil, err
@@ -118,17 +117,13 @@ func (cs *controllerServer) ControllerGetVolume(ctx context.Context, req *csi.Co
 	}}, nil
 }
 
-func extractRcloneConf(secrets map[string]string) (string, error) {
-	rcloneConfData, ok := secrets["rclone.conf"]
-	if !ok {
-		return "", fmt.Errorf("rclone.conf key in secret not found")
-	}
+func saveRcloneConf(configData string) (string, error) {
 	rcloneConf, err := os.CreateTemp("", "rclone.conf")
 	if err != nil {
 		return "", err
 	}
 
-	if _, err = rcloneConf.Write([]byte(rcloneConfData)); err != nil {
+	if _, err = rcloneConf.Write([]byte(configData)); err != nil {
 		return "", err
 	}
 

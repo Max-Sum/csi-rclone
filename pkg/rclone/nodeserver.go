@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
-	"strings"
 	"time"
 
 	"k8s.io/klog"
@@ -38,18 +37,10 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 
 	targetPath := req.GetTargetPath()
 	volumeId := req.GetVolumeId()
-	rcloneConfData, ok := req.GetSecrets()["rclone.conf"]
-	if !ok {
-		return nil, status.Error(codes.InvalidArgument, "NodePublishVolume:missing rclone.conf key, did you set csi.storage.k8s.io/node-publish-secret-name?")
-	}
-
-	remote, ok := req.GetVolumeContext()["remote"]
-	if !ok {
-		return nil, status.Errorf(codes.InvalidArgument, "NodePublishVolume: remote key not found in parameters")
-	}
-	remotePath, ok := req.GetVolumeContext()["path"]
-	if !ok {
-		return nil, status.Errorf(codes.InvalidArgument, "NodePublishVolume: path key not found in parameters")
+	remote, remotePath, configData, flags, e := extractFlags(req.GetVolumeContext(), req.GetSecrets())
+	if e != nil {
+		klog.Warningf("storage parameter error: %s", e)
+		return nil, e
 	}
 
 	notMnt, err := ns.mounter.IsLikelyNotMountPoint(targetPath)
@@ -79,20 +70,12 @@ func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 	}
 
-	var mountArgs map[string]string
-	for k, v := range req.GetVolumeContext() {
-		if strings.HasPrefix(k, "mount/") {
-			mountKey := k[6:]
-			mountArgs[mountKey] = v
-		}
-	}
-
 	rcloneVol := &RcloneVolume{
 		ID:         volumeId,
 		Remote:     remote,
 		RemotePath: remotePath,
 	}
-	err = ns.RcloneOps.Mount(ctx, rcloneVol, targetPath, rcloneConfData, mountArgs)
+	err = ns.RcloneOps.Mount(ctx, rcloneVol, targetPath, configData, flags)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -118,6 +101,71 @@ func (ns *nodeServer) WaitForMountAvailable(mountpoint string) error {
 			return errors.New("Wait for Mount available timeout")
 		}
 	}
+}
+
+func validateFlags(flags map[string]string) error {
+	if _, ok := flags["remote"]; !ok {
+		return status.Errorf(codes.InvalidArgument, "missing volume context value: remote")
+	}
+	if _, ok := flags["remotePath"]; !ok {
+		return status.Errorf(codes.InvalidArgument, "missing volume context value: remotePath")
+	}
+	return nil
+}
+
+func extractConfigData(parameters map[string]string) (string, map[string]string) {
+	flags := make(map[string]string)
+	for k, v := range(parameters) {
+		flags[k] = v
+	}
+	var configData string
+	var ok bool
+	if configData, ok = flags["configData"]; ok {
+		delete(flags, "configData")
+	}
+
+	delete(flags, "remote")
+	delete(flags, "remotePath")
+
+	return configData, flags
+}
+
+func extractFlags(volumeContext map[string]string, secret map[string]string) (string, string, string, map[string]string, error) {
+
+	// Empty argument list
+	flags := make(map[string]string)
+
+	// Secret values are default, gets merged and overriden by corresponding PV values
+	if len(secret) > 0 {
+		// Needs byte to string casting for map values
+		for k, v := range secret {
+			flags[k] = string(v)
+		}
+	} else {
+		klog.Infof("No csi-rclone connection defaults secret found.")
+	}
+
+	if len(volumeContext) > 0 {
+		for k, v := range volumeContext {
+			flags[k] = v
+		}
+	}
+
+	if e := validateFlags(flags); e != nil {
+		return "", "", "", flags, e
+	}
+
+	remote := flags["remote"]
+	remotePath := flags["remotePath"]
+
+	if remotePathSuffix, ok := flags["remotePathSuffix"]; ok {
+		remotePath = remotePath + remotePathSuffix
+		delete(flags, "remotePathSuffix")
+	}
+
+	configData, flags := extractConfigData(flags)
+
+	return remote, remotePath, configData, flags, nil
 }
 
 func validatePublishVolumeRequest(req *csi.NodePublishVolumeRequest) error {

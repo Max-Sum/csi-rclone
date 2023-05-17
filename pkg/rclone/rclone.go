@@ -26,8 +26,8 @@ import (
 )
 
 type Operations interface {
-	CreateVol(ctx context.Context, volumeName, remote, remotePath, rcloneConfigPath string) error
-	DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rcloneConfigPath string) error
+	CreateVol(ctx context.Context, volumeName, remote, remotePath, rcloneConfigPath string, pameters map[string]string) error
+	DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rcloneConfigPath string, pameters map[string]string) error
 	Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPath string, rcloneConfigData string, pameters map[string]string) error
 	Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error
 	CleanupMountPoint(ctx context.Context, secrets, pameters map[string]string) error
@@ -58,17 +58,13 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 	defaultFlags["rc"] = ""
 	defaultFlags["rc-addr"] = "0.0.0.0:5572"
 	defaultFlags["rc-enable-metrics"] = ""
-	defaultFlags["rc-web-gui"] = ""
-	defaultFlags["rc-web-gui-no-open-browser"] = ""
 	defaultFlags["rc-no-auth"] = ""
 	defaultFlags["volname"] = rcloneVolume.ID
 	defaultFlags["devname"] = rcloneVolume.ID
 	defaultFlags["cache-info-age"] = "72h"
 	defaultFlags["cache-chunk-clean-interval"] = "15m"
 	defaultFlags["dir-cache-time"] = "60s"
-	defaultFlags["vfs-cache-mode"] = "full"
-	defaultFlags["vfs-write-back"] = "10s"
-	defaultFlags["vfs-cache-max-size"] = "1g"
+	defaultFlags["vfs-cache-mode"] = "off"
 
 	defaultFlags["allow-other"] = "true"
 	defaultFlags["allow-non-empty"] = "true"
@@ -318,18 +314,25 @@ func (r *RcloneVolume) deploymentName() string {
 	return strings.ToLower(volumeID)
 }
 
-func (r *Rclone) CreateVol(ctx context.Context, volumeName, remote, remotePath, rcloneConfigPath string) error {
+func (r *Rclone) CreateVol(ctx context.Context, volumeName, remote, remotePath, rcloneConfigPath string, parameters map[string]string) error {
 	// Create subdirectory under base-dir
 	path := fmt.Sprintf("%s/%s", remotePath, volumeName)
-	return r.command("mkdir", remote, path, map[string]string{
-		"config": rcloneConfigPath,
-	})
+	flags := make(map[string]string)
+	for key, value := range parameters {
+		flags[key] = value
+	}
+	flags["config"] = rcloneConfigPath
+
+	return r.command("mkdir", remote, path, flags)
 }
 
-func (r Rclone) DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rcloneConfigPath string) error {
-	return r.command("rmdirs", rcloneVolume.Remote, rcloneVolume.RemotePath, map[string]string{
-		"config": rcloneConfigPath,
-	})
+func (r Rclone) DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rcloneConfigPath string, parameters map[string]string) error {
+	flags := make(map[string]string)
+	for key, value := range parameters {
+		flags[key] = value
+	}
+	flags["config"] = rcloneConfigPath
+	return r.command("rmdirs", rcloneVolume.Remote, rcloneVolume.RemotePath, flags)
 }
 
 func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
