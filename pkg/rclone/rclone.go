@@ -374,14 +374,17 @@ func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
 	}
 	// Block until deployment deleted
 	end := false
+	fmt.Printf("Waiting for deployment/%s to be deleted.", deploymentName)
 	for !end {
 		select {
 		case event := <-watcher.ResultChan():
 			if event.Type == watch.Deleted {
 				end = true
+				fmt.Printf("Deployment/%s deleted.", deploymentName)
 			}
 		case <-ctx.Done():
 			end = true
+			fmt.Printf("Deployment/%s waiting context done.", deploymentName)
 		}
 	}
 
