@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	"k8s.io/klog"
@@ -24,10 +25,10 @@ type nodeServer struct {
 	RcloneOps Operations
 }
 
-type mountPoint struct {
-	VolumeId  string
-	MountPath string
-}
+// type mountPoint struct {
+// 	VolumeId  string
+// 	MountPath string
+// }
 
 func (ns *nodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	klog.Infof("NodePublishVolume: called with args %+v", *req)
@@ -96,9 +97,8 @@ func (ns *nodeServer) WaitForMountAvailable(mountpoint string) error {
 			if !notMnt {
 				return nil
 			}
-			break
 		case <-time.After(1 * time.Minute):
-			return errors.New("Wait for Mount available timeout")
+			return errors.New("wait for mount available timeout")
 		}
 	}
 }
@@ -147,6 +147,9 @@ func extractFlags(volumeContext map[string]string, secret map[string]string) (st
 
 	if len(volumeContext) > 0 {
 		for k, v := range volumeContext {
+			if strings.HasPrefix(k, "storage.kubernetes.io/") {
+				continue
+			}
 			flags[k] = v
 		}
 	}

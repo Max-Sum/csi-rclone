@@ -198,7 +198,7 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 							{
 								Name:    "rclone-mounter",
 								Image:   "rclone/rclone:1.62.2",
-								Command: []string{"rclone", "--rc"},
+								Command: []string{"rclone"},
 								Args:    mountArgs,
 								Ports: []corev1.ContainerPort{
 									{
@@ -302,9 +302,10 @@ func DeleteDeploymentByLabel(client *kubernetes.Clientset, namespace string, lab
 		})
 }
 
-func (r *RcloneVolume) normalizedVolumeId() string {
-	return strings.ToLower(strings.ReplaceAll(r.ID, ":", "-"))
-}
+// func (r *RcloneVolume) normalizedVolumeId() string {
+// 	return strings.ToLower(strings.ReplaceAll(r.ID, ":", "-"))
+// }
+
 func (r *RcloneVolume) deploymentName() string {
 	volumeID := fmt.Sprintf("rclone-mounter-%s", r.ID)
 	if len(volumeID) > 63 {
@@ -372,11 +373,11 @@ func (r Rclone) GetVolumeById(ctx context.Context, volumeId string) (*RcloneVolu
 		if pv.Spec.CSI.VolumeHandle == volumeId {
 			remote := pv.Spec.CSI.VolumeAttributes["remote"]
 			if remote == "" {
-				return nil, errors.New("Missing remote volume attribute")
+				return nil, errors.New("missing remote volume attribute")
 			}
-			path := pv.Spec.CSI.VolumeAttributes["path"]
+			path := pv.Spec.CSI.VolumeAttributes["remotePath"]
 			if path == "" {
-				return nil, errors.New("Missing path volume attribute")
+				return nil, errors.New("missing remotePath volume attribute")
 			}
 
 			return &RcloneVolume{

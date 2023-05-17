@@ -73,8 +73,8 @@ func (cs *controllerServer) CreateVolume(ctx context.Context, req *csi.CreateVol
 			CapacityBytes: req.GetCapacityRange().GetRequiredBytes(),
 			VolumeId:      uuid.New().String(),
 			VolumeContext: map[string]string{
-				"remote": remote,
-				"path":   fmt.Sprintf("%s/%s", remotePath, volumeName),
+				"remote":     remote,
+				"remotePath": fmt.Sprintf("%s/%s", remotePath, volumeName),
 			},
 		},
 	}, nil
