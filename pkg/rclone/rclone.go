@@ -351,7 +351,7 @@ func (r Rclone) DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rclon
 		flags[key] = value
 	}
 	flags["config"] = rcloneConfigPath
-	return r.command("rmdirs", rcloneVolume.Remote, rcloneVolume.RemotePath, flags)
+	return r.command("purge", rcloneVolume.Remote, rcloneVolume.RemotePath, flags)
 }
 
 func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
