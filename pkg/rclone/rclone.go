@@ -378,17 +378,17 @@ func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
 	}
 	// Block until deployment deleted
 	end := false
-	klog.Infof("Waiting for pods of deployment/%d to be deleted.", deploymentName)
+	klog.Infof("Waiting for pods of deployment/%s to be deleted.", deploymentName)
 	for !end {
 		select {
 		case event := <-watcher.ResultChan():
 			if event.Type == watch.Deleted {
 				end = true
-				klog.Infof("Pods of deployment/%d deleted.", deploymentName)
+				klog.Infof("Pods of deployment/%s deleted.", deploymentName)
 			}
 		case <-ctx.Done():
 			end = true
-			klog.Infof("Pods deployment/%d waiting context done.", deploymentName)
+			klog.Infof("Pods deployment/%s waiting context done.", deploymentName)
 		}
 	}
 

@@ -100,6 +100,8 @@ Deploy example definition
 ## Installing CSI driver to kubernetes cluster w/ dynamic provisioner
 TLDR: Edit `deploy/kubernetes/dynamic-provisioner/csi-rclone-secret.yaml`. Then run` kubectl apply -f deploy/kubernetes/dynamic-provisioner`.
 
+Noted that if you install dynamic provisioner. The volumes mapping to PVs are OWNED by the provisioner. When PV get deleted, the volume will be purged.
+If you want to protect the volume, make backups and set reclaimPolicy to retain in `deploy/kubernetes/dynamic-provisioner/csi-rclone-storageclass.yaml`.
 
 1. Set up storage backend. You can use [Minio](https://min.io/), Amazon S3 compatible cloud storage service.
 i.e. 
