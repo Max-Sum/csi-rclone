@@ -99,6 +99,7 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 
 	// Wait time for VFS write back
 	timeWaitVFS := time.Duration(0)
+	waitCommand := ""
 	if cacheMode, ok := parameters["vfs-cache-mode"]; ok {
 		if cacheMode != "off" {
 			if vfsWriteBack, ok := parameters["vfs-write-back"]; ok {
@@ -109,6 +110,9 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 			} else {
 				timeWaitVFS = 5 * time.Second
 			}
+			waitCommand = "echo \"Waiting for transfers to complete\" > /proc/1/fd/1; " +
+				`while [ $( rclone rc vfs/stats | tr -d '\n' | sed -E 's/^\{(.*,)?\s*"diskCache"\s*:\s*\{(.*,)?\s*"(uploadsQueued|uploadsInProgress)"\s*:\s*([0-9]+)\s*(,.*)?,\s*"(uploadsQueued|uploadsInProgress)"\s*:\s*([0-9]+)\s*(,.*)?\}.*\}/\4 + \7/' | bc ) -gt 0 ] ; do sleep 1; done; ` +
+				"echo \"Done waiting\" > /proc/1/fd/1; "
 		}
 	}
 
@@ -229,13 +233,7 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 									PreStop: &corev1.Handler{
 										// Do not umount until all transfers finished.
 										Exec: &corev1.ExecAction{
-											Command: []string{"/bin/sh", "-c",
-												"echo \"Waiting for transfers to complete\" > /proc/1/fd/1; " +
-													fmt.Sprintf("sleep %d; ", int(math.Ceil(timeWaitVFS.Seconds()))) +
-													"while rclone rc core/stats | grep '\"transferring\":'; do sleep 1; done; " +
-													"echo \"Done waiting\" > /proc/1/fd/1; " +
-													"umount " + targetPath,
-											},
+											Command: []string{"/bin/sh", "-c", waitCommand + "; umount " + targetPath},
 										},
 									},
 								},
