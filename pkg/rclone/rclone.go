@@ -358,11 +358,15 @@ func (r Rclone) DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rclon
 func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
 	deploymentName := rcloneVolume.deploymentName()
 	// Wait for Deployment to stop
+	deployment, err := r.kubeClient.AppsV1().Deployments(r.namespace).Get(deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
 	opts := metav1.ListOptions{
 		TypeMeta:      metav1.TypeMeta{},
-		FieldSelector: "metadata.name=" + deploymentName,
+		LabelSelector: metav1.FormatLabelSelector(deployment.Spec.Selector),
 	}
-	watcher, err := r.kubeClient.AppsV1().Deployments(r.namespace).Watch(opts)
+	watcher, err := r.kubeClient.CoreV1().Pods(r.namespace).Watch(opts)
 	if err != nil {
 		return err
 	}
@@ -374,17 +378,17 @@ func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
 	}
 	// Block until deployment deleted
 	end := false
-	klog.Infof("Waiting for deployment/%s to be deleted.", deploymentName)
+	klog.Infof("Waiting for pods of deployment/%d to be deleted.", deploymentName)
 	for !end {
 		select {
 		case event := <-watcher.ResultChan():
 			if event.Type == watch.Deleted {
 				end = true
-				klog.Infof("Deployment/%s deleted.", deploymentName)
+				klog.Infof("Pods of deployment/%d deleted.", deploymentName)
 			}
 		case <-ctx.Done():
 			end = true
-			klog.Infof("Deployment/%s waiting context done.", deploymentName)
+			klog.Infof("Pods deployment/%d waiting context done.", deploymentName)
 		}
 	}
 

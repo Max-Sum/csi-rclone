@@ -115,7 +115,7 @@ func validateFlags(flags map[string]string) error {
 
 func extractConfigData(parameters map[string]string) (string, map[string]string) {
 	flags := make(map[string]string)
-	for k, v := range(parameters) {
+	for k, v := range parameters {
 		flags[k] = v
 	}
 	var configData string
@@ -213,7 +213,9 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	ns.RcloneOps.Unmount(ctx, rcloneVol)
+	if err := ns.RcloneOps.Unmount(ctx, rcloneVol); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 	util.UnmountPath(req.GetTargetPath(), ns.mounter)
 
 	return &csi.NodeUnpublishVolumeResponse{}, nil
