@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"strings"
@@ -95,6 +96,21 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 		return err
 	}
 
+	// Wait time for VFS write back
+	timeWaitVFS := time.Duration(0)
+	if cacheMode, ok := parameters["vfs-cache-mode"]; ok {
+		if cacheMode != "off" {
+			if vfsWriteBack, ok := parameters["vfs-write-back"]; ok {
+				timeWaitVFS, err = time.ParseDuration(vfsWriteBack)
+				if err != nil {
+					return err
+				}
+			} else {
+				timeWaitVFS = 5 * time.Second
+			}
+		}
+	}
+
 	//deploymentName := fmt.Sprintf("%s%d", rcloneVolume.deploymentName(), uuid.New().ID())
 	deploymentName := rcloneVolume.deploymentName()
 	h := sha256.New()
@@ -163,10 +179,11 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 						Labels: pvDeploymentLabels,
 					},
 					Spec: corev1.PodSpec{
-						NodeName:                      os.Getenv("NODE_ID"),
-						RestartPolicy:                 corev1.RestartPolicyAlways,
-						PriorityClassName:             "system-cluster-critical",
-						TerminationGracePeriodSeconds: pointer.Int64Ptr(720), // More time for transfers to complete
+						NodeName:          os.Getenv("NODE_ID"),
+						RestartPolicy:     corev1.RestartPolicyAlways,
+						PriorityClassName: "system-cluster-critical",
+						// More time for transfers to complete
+						TerminationGracePeriodSeconds: pointer.Int64Ptr(900 + int64(math.Ceil(timeWaitVFS.Seconds()))),
 						Volumes: []corev1.Volume{
 							{
 								Name: "mount",
@@ -212,7 +229,8 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 										// Do not umount until all transfers finished.
 										Exec: &corev1.ExecAction{
 											Command: []string{"sh", "-c",
-												"while rclone rc core/stats | grep '\"transferring\":'; do sleep 1; done;" +
+												fmt.Sprintf("sleep %d; ", int(math.Ceil(timeWaitVFS.Seconds()))) +
+													"while rclone rc core/stats | grep '\"transferring\":'; do sleep 1; done;" +
 													"umount " + targetPath,
 											},
 										},
