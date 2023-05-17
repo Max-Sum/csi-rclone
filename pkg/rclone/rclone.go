@@ -19,6 +19,7 @@ import (
 	labels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
 	"k8s.io/kubernetes/pkg/client/conditions"
@@ -358,9 +359,32 @@ func (r Rclone) DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rclon
 
 func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
 	deploymentName := rcloneVolume.deploymentName()
-	err := r.kubeClient.AppsV1().Deployments(r.namespace).Delete(deploymentName, &metav1.DeleteOptions{})
+	// Wait for Deployment to stop
+	opts := metav1.ListOptions{
+		TypeMeta:      metav1.TypeMeta{},
+		FieldSelector: "metadata.name=" + deploymentName,
+	}
+	watcher, err := r.kubeClient.AppsV1().Deployments(r.namespace).Watch(opts)
 	if err != nil {
 		return err
+	}
+	defer watcher.Stop()
+	// Delete Deployment
+	err = r.kubeClient.AppsV1().Deployments(r.namespace).Delete(deploymentName, &metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	// Block until deployment deleted
+	end := false
+	for !end {
+		select {
+		case event := <-watcher.ResultChan():
+			if event.Type == watch.Deleted {
+				end = true
+			}
+		case <-ctx.Done():
+			end = true
+		}
 	}
 
 	return r.kubeClient.CoreV1().Secrets(r.namespace).Delete(deploymentName, &metav1.DeleteOptions{})
