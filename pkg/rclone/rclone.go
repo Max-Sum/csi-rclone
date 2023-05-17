@@ -228,9 +228,11 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 									PreStop: &corev1.Handler{
 										// Do not umount until all transfers finished.
 										Exec: &corev1.ExecAction{
-											Command: []string{"sh", "-c",
-												fmt.Sprintf("sleep %d; ", int(math.Ceil(timeWaitVFS.Seconds()))) +
-													"while rclone rc core/stats | grep '\"transferring\":'; do sleep 1; done;" +
+											Command: []string{"/bin/sh", "-c",
+												"echo \"Waiting for transfers to complete\" > /proc/1/fd/1; " +
+													fmt.Sprintf("sleep %d; ", int(math.Ceil(timeWaitVFS.Seconds()))) +
+													"while rclone rc core/stats | grep '\"transferring\":'; do sleep 1; done; " +
+													"echo \"Done waiting\" > /proc/1/fd/1; " +
 													"umount " + targetPath,
 											},
 										},
