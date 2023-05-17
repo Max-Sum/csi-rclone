@@ -233,7 +233,7 @@ func (r *Rclone) Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPa
 									PreStop: &corev1.Handler{
 										// Do not umount until all transfers finished.
 										Exec: &corev1.ExecAction{
-											Command: []string{"/bin/sh", "-c", waitCommand + "; umount " + targetPath},
+											Command: []string{"/bin/sh", "-c", waitCommand + " umount " + targetPath},
 										},
 									},
 								},
@@ -374,17 +374,17 @@ func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
 	}
 	// Block until deployment deleted
 	end := false
-	fmt.Printf("Waiting for deployment/%s to be deleted.", deploymentName)
+	klog.Infof("Waiting for deployment/%s to be deleted.", deploymentName)
 	for !end {
 		select {
 		case event := <-watcher.ResultChan():
 			if event.Type == watch.Deleted {
 				end = true
-				fmt.Printf("Deployment/%s deleted.", deploymentName)
+				klog.Infof("Deployment/%s deleted.", deploymentName)
 			}
 		case <-ctx.Done():
 			end = true
-			fmt.Printf("Deployment/%s waiting context done.", deploymentName)
+			klog.Infof("Deployment/%s waiting context done.", deploymentName)
 		}
 	}
 
