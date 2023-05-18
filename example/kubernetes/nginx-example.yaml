@@ -12,6 +12,9 @@ spec:
   storageClassName: rclone
   csi:
     driver: csi-rclone
+    nodePublishSecretRef:
+      name: rclone-secret
+      namespace: csi-rclone
     volumeHandle: data-id
     volumeAttributes:
       remote: "s3"

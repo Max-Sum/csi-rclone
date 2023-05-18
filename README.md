@@ -84,6 +84,9 @@ spec:
   storageClassName: rclone
   csi:
     driver: csi-rclone
+    nodePublishSecretRef:
+      name: rclone-secret
+      namespace: csi-rclone
     volumeHandle: data-id
     volumeAttributes:
       remote: "s3"
@@ -110,40 +113,6 @@ helm upgrade --install --create-namespace --namespace minio minio minio/minio --
 ```
 
 2. Configure the backend in `csi-rclone-storageclass.yaml` and `csi-rclone-secret.yaml`.
-
-csi-rclone-storageclass.yaml
-```
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: rclone
-  namespace: csi-rclone
-provisioner: csi-rclone
-parameters:
-  remote: "minio"
-  path: "rclone-kubernetes"
-  csi.storage.k8s.io/provisioner-secret-name: rclone-secret
-  csi.storage.k8s.io/provisioner-secret-namespace: csi-rclone
-  csi.storage.k8s.io/node-publish-secret-name: rclone-secret
-  csi.storage.k8s.io/node-publish-secret-namespace: csi-rclone
-```
-
-csi-rclone-secret.yaml
-```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: rclone-secret
-  namespace: csi-rclone
-type: Opaque
-stringData:
-  remote: "s3"
-  remotePath: "projectname"
-  s3-provider: "Minio"
-  s3-endpoint: "http://minio.minio:9000"
-  s3-access-key-id: "ACCESS_KEY_ID"
-  s3-secret-access-key: "SECRET_ACCESS_KEY"
-```
 
 Alternatively, you may specify rclone configuration file directly in the secret under `configData` field.
 
