@@ -208,17 +208,12 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.InvalidArgument, "NodeUnpublishVolume Target Path must be provided")
 	}
 
-	rcloneVol, err := ns.RcloneOps.GetVolumeById(ctx, req.GetVolumeId())
-	// Skip not existing volume
-	if err == ErrVolumeNotFound {
+	if _, err := ns.RcloneOps.GetVolumeById(ctx, req.GetVolumeId()); err == ErrVolumeNotFound {
 		util.UnmountPath(req.GetTargetPath(), ns.mounter)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	}
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
 
-	if err := ns.RcloneOps.Unmount(ctx, rcloneVol); err != nil {
+	if err := ns.RcloneOps.Unmount(ctx, req.GetVolumeId()); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	util.UnmountPath(req.GetTargetPath(), ns.mounter)

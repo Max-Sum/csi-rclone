@@ -35,7 +35,7 @@ type Operations interface {
 	CreateVol(ctx context.Context, volumeName, remote, remotePath, rcloneConfigPath string, pameters map[string]string) error
 	DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rcloneConfigPath string, pameters map[string]string) error
 	Mount(ctx context.Context, rcloneVolume *RcloneVolume, targetPath string, rcloneConfigData string, pameters map[string]string) error
-	Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error
+	Unmount(ctx context.Context, volumeId string) error
 	CleanupMountPoint(ctx context.Context, secrets, pameters map[string]string) error
 	GetVolumeById(ctx context.Context, volumeId string) (*RcloneVolume, error)
 }
@@ -359,7 +359,8 @@ func (r Rclone) DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rclon
 	return r.command("purge", rcloneVolume.Remote, rcloneVolume.RemotePath, flags)
 }
 
-func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
+func (r Rclone) Unmount(ctx context.Context, volumeId string) error {
+	rcloneVolume := &RcloneVolume{ID: volumeId}
 	deploymentName := rcloneVolume.deploymentName()
 	// Wait for Deployment to stop
 	deployment, err := r.kubeClient.AppsV1().Deployments(r.namespace).Get(deploymentName, metav1.GetOptions{})
