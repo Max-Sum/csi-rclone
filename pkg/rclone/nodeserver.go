@@ -209,6 +209,11 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	}
 
 	rcloneVol, err := ns.RcloneOps.GetVolumeById(ctx, req.GetVolumeId())
+	// Skip not existing volume
+	if err == ErrVolumeNotFound {
+		util.UnmountPath(req.GetTargetPath(), ns.mounter)
+		return &csi.NodeUnpublishVolumeResponse{}, nil
+	}
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -217,7 +222,6 @@ func (ns *nodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	util.UnmountPath(req.GetTargetPath(), ns.mounter)
-
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 

@@ -27,6 +27,10 @@ import (
 	"k8s.io/utils/pointer"
 )
 
+var (
+	ErrVolumeNotFound = errors.New("volume is not found")
+)
+
 type Operations interface {
 	CreateVol(ctx context.Context, volumeName, remote, remotePath, rcloneConfigPath string, pameters map[string]string) error
 	DeleteVol(ctx context.Context, rcloneVolume *RcloneVolume, rcloneConfigPath string, pameters map[string]string) error
@@ -360,6 +364,13 @@ func (r Rclone) Unmount(ctx context.Context, rcloneVolume *RcloneVolume) error {
 	// Wait for Deployment to stop
 	deployment, err := r.kubeClient.AppsV1().Deployments(r.namespace).Get(deploymentName, metav1.GetOptions{})
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			err = r.kubeClient.CoreV1().Secrets(r.namespace).Delete(deploymentName, &metav1.DeleteOptions{})
+			if !k8serrors.IsNotFound(err) {
+				return err
+			}
+			return nil
+		}
 		return err
 	}
 	opts := metav1.ListOptions{
@@ -420,13 +431,22 @@ func (r Rclone) GetVolumeById(ctx context.Context, volumeId string) (*RcloneVolu
 			continue
 		}
 		if pv.Spec.CSI.VolumeHandle == volumeId {
-			remote := pv.Spec.CSI.VolumeAttributes["remote"]
-			if remote == "" {
-				return nil, errors.New("missing remote volume attribute")
+			var remote string
+			var path string
+			secretRef := pv.Spec.CSI.NodePublishSecretRef
+			secrets := make(map[string]string)
+			if secretRef != nil {
+				sec, err := r.kubeClient.CoreV1().Secrets(secretRef.Namespace).Get(secretRef.Name, metav1.GetOptions{})
+				if err == nil && sec != nil && len(sec.Data) > 0 {
+					secrets := make(map[string]string)
+					for k, v := range sec.Data {
+						secrets[k] = string(v)
+					}
+				}
 			}
-			path := pv.Spec.CSI.VolumeAttributes["remotePath"]
-			if path == "" {
-				return nil, errors.New("missing remotePath volume attribute")
+			remote, path, _, _, err = extractFlags(pv.Spec.CSI.VolumeAttributes, secrets)
+			if err != nil {
+				return nil, err
 			}
 
 			return &RcloneVolume{
@@ -436,7 +456,7 @@ func (r Rclone) GetVolumeById(ctx context.Context, volumeId string) (*RcloneVolu
 			}, nil
 		}
 	}
-	return nil, fmt.Errorf("volume %s not found", volumeId)
+	return nil, ErrVolumeNotFound
 }
 
 func NewRclone(kubeClient *kubernetes.Clientset) Operations {
