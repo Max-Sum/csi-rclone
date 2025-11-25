@@ -5,7 +5,7 @@ name: 'build images'
 on:
   push:
     branches:
-      - master
+      - build
 
 jobs:
   docker:
@@ -20,7 +20,7 @@ jobs:
           DOCKER_IMAGE=${{ secrets.DOCKER_ORG }}/${GITHUB_REPOSITORY#*/}
           VERSION=$(cat VERSION)
           
-          TAGS="${DOCKER_IMAGE}:${VERSION},${DOCKER_IMAGE}:latest"
+          TAGS="${DOCKER_IMAGE}:${VERSION}"
 
           # Set output parameters.
           echo ::set-output name=tags::${TAGS}
