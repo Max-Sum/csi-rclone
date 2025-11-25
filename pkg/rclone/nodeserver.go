@@ -418,7 +418,7 @@ func Mount(remote string, remotePath string, targetPath string, configData strin
 		"--rc",
 		"--rc-addr="+fmt.Sprintf("localhost:%d", rcPort),
 		"--daemon",
-		"--daemon-wait=0",
+		"--daemon-wait=1000h",
 	)
 
 	// If a custom flag configData is defined,
